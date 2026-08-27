@@ -1,3 +1,5 @@
+~~~
+
 PVEF - Persistent PvE Framework for Arma Reforger
 Copyright (c) 2026 Michael
 
@@ -9,3 +11,5 @@ Full licence: https://www.bohemia.net/community/licenses/arma-public-license-sha
 Arma Reforger and the Enfusion engine are trademarks of Bohemia Interactive a.s.
 This project is a community modification and is neither affiliated with nor
 endorsed by Bohemia Interactive a.s.
+
+~~~
