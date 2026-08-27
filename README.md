@@ -1,2 +1,3 @@
-<img width="1920" height="1080" alt="PVEFCore_Banner" src="https://github.com/user-attachments/assets/62bd3d12-0df7-4c97-a1d5-ddee099bc534" />
+<img width="1152" height="648" alt="PVEF_Arland_Workshop" src="https://github.com/user-attachments/assets/43fecdd2-382a-458c-9ee1-9d25c067c428" />
+
 
