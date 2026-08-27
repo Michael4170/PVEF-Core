@@ -7,6 +7,9 @@ Most PvE Conflict servers run a core mod plus a second mod that caps how many ob
 
 EARLY ACCESS. Working now:
 
+SENARIOS INCLUDED
+- PVEF ARLAND
+
 OBJECTIVE GOVERNOR
 - A fixed number of objectives open at once. Two by default, configurable.
 - The front is derived from your base layout, not a link radius you tune. Close-together bases merge into one objective.
