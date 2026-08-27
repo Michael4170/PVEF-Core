@@ -27,9 +27,10 @@ COUNTER-ATTACKS
 
 Reference world: PVEF Arland.
 
-NOT IN YET: patrols, artillery, civilians, save persistence, round rotation, rank gates, Everon map, Kolguyev map, terrain generator, module API docs. Config keys will move.
+NOT IN YET: patrols, artillery, civilians, save persistence, round rotation, rank gates, Everon map, Kolguyev map, terrain generator, module API docs.
 
 Suggestions and bug reports welcome via [https://discord.gg/SsM7r8b7ae] or through the Github page https://github.com/Michael4170/PVEF-Core.
+
 Credit to Gramps303's ConflictPVERemixedVanilla2.0 and LinearConflictPVE - they set the bar. PVEF is independent - no code or assets from either.
 
 Licence: APL-SA.
