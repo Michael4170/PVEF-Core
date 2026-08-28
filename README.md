@@ -7,7 +7,7 @@ Most PvE Conflict servers run a core mod plus a second mod that caps how many ob
 
 EARLY ACCESS. Working now:
 
-SENARIOS INCLUDED
+SCENARIOS INCLUDED
 - PVEF ARLAND
 
 OBJECTIVE GOVERNOR
