@@ -28,3 +28,9 @@ COUNTER-ATTACKS
 NOT IN YET: road and air patrols, artillery, round rotation, rank gates, Everon profile, terrain generator, module API docs. Config keys will move.
 
 Credit to Gramps303's ConflictPVERemixedVanilla2.0 and LinearConflictPVE - they set the bar. PVEF shares no code or assets with either.
+
+Mission making, configuration and troubleshooting:
+https://github.com/Michael4170/Overwatch-Server-Admin-Toolkit
+
+Suggestions and bug reports welcome via https://discord.gg/SsM7r8b7ae or the GitHub
+page.
