@@ -25,12 +25,6 @@ COUNTER-ATTACKS
 - They stay when you leave. Walking away is not how you beat one.
 - A wave that stops making progress is given up on, so a badly sited counter cannot hold AI all round. The log names the spot.
 
-ALSO WORKING
-- The enemy side is locked - players cannot join USSR or FIA.
-- The enemy takes bases back, it does not just defend them.
-- Civilians in towns the round has reached.
-- Server-side save, on the game's own persistence.
-
 NOT IN YET: road and air patrols, artillery, round rotation, rank gates, Everon profile, terrain generator, module API docs. Config keys will move.
 
 Credit to Gramps303's ConflictPVERemixedVanilla2.0 and LinearConflictPVE - they set the bar. PVEF shares no code or assets with either.
