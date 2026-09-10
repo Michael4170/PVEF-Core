@@ -402,19 +402,6 @@ A depot is not an objective, so its defenders must not be gated like a garrison.
 
 Consider `m_eImportance = LOW` as well, so depot guards yield AI budget to objective fights. NORMAL is defensible if you want the depot properly held — make it a decision rather than a default.
 
-### Do not try to change the map icon colour
-
-The depot's icon is green and **there is no authoring route to change it.** Four separate attempts failed, all silently:
-
-1. `SCR_MapDescriptorComponent`'s own `Faction` field — setting it to 2 changed nothing, not even to blue, which is what 2 means.
-2. Adding `SCR_FactionAffiliationComponent` set to USSR — no effect.
-3. Calling `MapItem.SetFactionIndex()` directly from a script component — no effect.
-4. Overriding the icon asset — would not have worked either.
-
-**The reason:** colour is a property of the *(descriptor type, faction)* pair held on the `MapLayer`, not on the entity. `MapLayer.GetPropsFor(iFaction, type)` is where it comes from, and `Icon (generic)` evidently renders the same colour across all three faction indices. Bases are red because they carry `SCR_CampaignMilitaryBaseMapDescriptorComponent`, a subclass whose `MapSetup(Faction)` runs at runtime — the plain descriptor on a depot has no such call.
-
-If you need supply points to read differently on the map, use **`Display Name`** on the descriptor and a non-generic **`Main Type`**. A labelled icon of a different shape separates them from bases better than colour would, and costs nothing.
-
 ---
 
 ## 7. The mission header
