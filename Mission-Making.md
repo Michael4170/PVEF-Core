@@ -4,7 +4,7 @@ How to stand up a new PvE mission on PVEF Core. Written against `PVEF Core` (GUI
 
 **Read this once end to end before you place anything.** Roughly half the steps exist because of a failure that is silent — the mission boots, looks right, and does the wrong thing hours later.
 
-> **PVEF ARLAND IS THE REFERENCE WORLD.** It ships inside PVEF Core and every feature in this document is placed and working in it. The fastest way to build a new map is not to follow this document from the top — it is to **open PVEF Arland alongside your world and copy the pieces you want across**. §1b is that workflow. Read the rest for what the pieces mean and what to change after pasting.
+> **PVEF ARLAND IS THE REFERENCE WORLD.** It ships inside PVEF Core and every feature in this document is placed and working in it. The fastest way to build a new map is not to follow this document from the top — it is to **open PVEF Arland alongside your world and copy the pieces you want across**. The "Copying from PVEF Arland" section below is that workflow. Read the rest for what the pieces mean and what to change after pasting.
 
 ---
 
@@ -36,7 +36,7 @@ SubScene {
 }
 ```
 
-Path B is ~20 base placements of work. The tier prefabs in §4 — and copying from Arland, §1b — are what make that a day rather than a week.
+Path B is ~20 base placements of work. The tier prefabs and copying from Arland are what make that a day rather than a week.
 
 ---
 
@@ -100,19 +100,19 @@ This is a **Place**, not a Duplicate or an Override: you are copying entity *set
 
 Every one of these fails silently if you skip it.
 
-1. **Navmesh references, if you copied the Managers layer.** `SCR_AIWorld`'s three `NavmeshWorldComponent`s still point at Arland's meshes. Nothing errors; AI simply cannot path, which reads as broken AI rather than missing config. **Re-point them first** (§3).
+1. **Navmesh references, if you copied the Managers layer.** `SCR_AIWorld`'s three `NavmeshWorldComponent`s still point at Arland's meshes. Nothing errors; AI simply cannot path, which reads as broken AI rather than missing config. **Re-point them first** — see the navmesh section.
 
-2. **`m_sProfileId` must be unique.** A copied base arrives carrying Arland's key. Two bases with the same profileId means per-base config silently attaches to the wrong one. The validator warns at boot — read it (§9, line 3).
+2. **`m_sProfileId` must be unique.** A copied base arrives carrying Arland's key. Two bases with the same profileId means per-base config silently attaches to the wrong one. The validator warns about duplicates when the world loads.
 
 3. **Defend waypoints keep a LOCAL offset, not a world position.** A parented waypoint serialises as an offset from its parent, so a copied counter-attack lands its objective the same distance and bearing from the spawn point as it did on Arland — which will be somewhere arbitrary on your site. Re-drag every one.
 
-4. **Radio ranges are sized for a 4 km island.** Arland relays transmit 1000 m. On a bigger map either raise them per relay or use `m_fRadioRangeScale` (§8) to scale the lot.
+4. **Radio ranges are sized for a 4 km island.** Arland relays transmit 1000 m. On a bigger map either raise them per relay or use `m_fRadioRangeScale` on `PVEF_Manager` to scale the lot.
 
-5. **`m_iActiveObjectives` is 1 on Arland deliberately**, because it is small. It is on the `PVEF_Manager` instance, so it comes across if you copy the game mode entity. Most maps want the shipped default of 2, or 3 for Everon scale (§8).
+5. **`m_iActiveObjectives` is 1 on Arland deliberately**, because it is small. It is on the `PVEF_Manager` instance, so it comes across if you copy the game mode entity. Most maps want the shipped default of 2, or 3 for Everon scale.
 
 ### And one that is easy to miss
 
-Arland's counter-attacks are all `_12` templates with their group prefab and multiplier overridden — so the prefab name in the hierarchy no longer tells you the force size. If you copy one expecting 12 men you may get 24. Check `m_sGroupPrefab` on anything you paste (§6).
+Arland's counter-attacks are all `_12` templates with their group prefab and multiplier overridden — so the prefab name in the hierarchy no longer tells you the force size. If you copy one expecting 12 men you may get 24. Check `m_sGroupPrefab` on anything you paste.
 
 ---
 
@@ -143,7 +143,7 @@ That is "players hold 10 control points and the round ends". Count your capturab
 
 ### Layers
 
-Organise by **system**, not per base. PVEF Arland's seven layers are listed in §1b, and copying that structure is the easiest way to get it right. You can toggle a whole subsystem while editing, and related entities stay together.
+Organise by **system**, not per base. PVEF Arland's seven layers are listed above, and copying that structure is the easiest way to get it right. You can toggle a whole subsystem while editing, and related entities stay together.
 
 ---
 
@@ -161,7 +161,7 @@ AI pathing needs `SCR_AIWorld`'s `NavmeshWorldComponent`s to *point at* `.nmn` f
 
 The Game Master navmeshes cover the whole terrain and BI maintains them. This works because path B changes no terrain — you place buildings *on* the existing heightmap. Find the equivalent three for your terrain under `worlds/GameMaster/Navmeshes/` and `worlds/MP/Navmeshes/`.
 
-> **COPYING ARLAND'S MANAGERS LAYER BRINGS ARLAND'S NAVMESH WITH IT.** Its three navmesh references still point at `GM_Arland.nmn`, wherever your world actually is. Nothing errors. AI simply cannot path. **If you copy the Managers layer, re-point the navmeshes before anything else** — it is the single most expensive thing on the §1b list to get wrong, because it presents as the framework being broken.
+> **COPYING ARLAND'S MANAGERS LAYER BRINGS ARLAND'S NAVMESH WITH IT.** Its three navmesh references still point at `GM_Arland.nmn`, wherever your world actually is. Nothing errors. AI simply cannot path. **If you copy the Managers layer, re-point the navmeshes before anything else** — it is the single most expensive copy mistake to get wrong, because it presents as the framework being broken.
 
 **You must generate your own the moment you change the ground.** Flattening under a base, Terrain Tools → Bake Selection, or placing a composition that cuts into a slope all invalidate the baked mesh locally. Then: Navmesh Tool → Connect → Generate (or *Rebuild changed tiles*), and **tick "Autosave when done" or click Save afterwards** — without that the generated mesh is discarded and you have done nothing.
 
@@ -171,7 +171,7 @@ The Game Master navmeshes cover the whole terrain and BI maintains them. This wo
 
 ### The tier prefabs
 
-PVEF Core ships five. Place these, not vanilla base prefabs — they already carry `PVEF_BaseTag` with the right tier and the right `SCR_CampaignMilitaryBaseComponent` flags. **Or copy a configured one out of Arland's `Bases.layer` (§1b), which saves setting the flags at all.**
+PVEF Core ships five. Place these, not vanilla base prefabs — they already carry `PVEF_BaseTag` with the right tier and the right `SCR_CampaignMilitaryBaseComponent` flags. **Or copy a configured one out of Arland's `Bases.layer`, which saves setting the flags at all.**
 
 | Prefab | GUID | Tier | Notes |
 |---|---|---|---|
@@ -215,7 +215,7 @@ SCR_CoverageRadioComponent
   Transceivers > RelayTransceiver > "Transmitting Range"  1000
 ```
 
-1000 m on a 4 km island. On a bigger map, raise the ranges or place more relays — and see `m_fRadioRangeScale` in §8 for the global multiplier that saves you editing every base.
+1000 m on a 4 km island. On a bigger map, raise the ranges or place more relays — and see `m_fRadioRangeScale` under Tuning for the global multiplier that saves you editing every base.
 
 ### The two HQs — no tag needed
 
@@ -342,7 +342,7 @@ Counter-attack: counter-attack at [x, y] is DONE after 1 wave(s) - GIVEN UP ON, 
 
 **Read that as an authoring fault, not a bug.** The position is authored, so a replacement wave would walk onto the same ground — which is why PVEF retires the counter rather than retrying. The coordinates in the second line are where the force could not path out of. Move the spawn point.
 
-This is also the most likely thing to fire on a **freshly copied** counter-attack, because a pasted defend waypoint keeps its old local offset (§1b) and may be pointing at ground the force cannot reach.
+This is also the most likely thing to fire on a **freshly copied** counter-attack, because a pasted defend waypoint keeps its old local offset and may be pointing at ground the force cannot reach.
 
 Two consequences worth knowing before you file a bug report:
 
@@ -542,9 +542,9 @@ Select the game mode entity in the world and edit `PVEF_Manager`. There is no co
 | `m_iMaxClusterSize` | 2 | stops greedy clustering chaining across a dense map |
 | `m_fMinSeparation` | 600 | keep separate objectives at least this far apart |
 
-Retake objectives (§6) sit outside all of these: they do not count toward `m_iActiveObjectives` and do not wait for `m_fRefillDelaySec`.
+Retake objectives (see Counter-attacks) sit outside all of these: they do not count toward `m_iActiveObjectives` and do not wait for `m_fRefillDelaySec`.
 
-**Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it** (§1b).
+**Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it.**
 
 `m_fRefillDelaySec 60` is the tested value. Longer delays leave players with nothing to do between objectives.
 
@@ -613,31 +613,31 @@ Plan around these — they are gaps, not settings you have missed.
 
 - **No road or air patrols.** The ground between the MOB and the front is empty by design right now, and every drive is safe.
 - **No rank gates or arsenal tiers.** Addon territory, not core.
-- **PVEF's own state is not persisted.** Vanilla persistence carries base ownership; the governor's objectives, counter-attack wave counts and the civilian latch reset on reload. See §7.
+- **PVEF's own state is not persisted.** Vanilla persistence carries base ownership; the governor's objectives, counter-attack wave counts and the civilian latch reset on reload. See The mission header.
 - **No terrain-profile generator, and there will not be one.** Bases are tagged by hand in the editor; this document plus copying from PVEF Arland is the authoring path.
 
 ### What is included
 
 All of these work, and all of them are placed and working in PVEF Arland:
 
-**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** (§6) · **supply points** (§6b) · **retake objectives** — a base lost to a counter-attack gets its task marker back (§6) · **mortars** (§6c).
+**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars**.
 
 ---
 
 ## Reference: PVEF Arland at a glance
 
-The reference world, and the thing to copy from (§1b). Also useful as a sanity check on your own numbers.
+The reference world, and the thing to copy from. Also useful as a sanity check on your own numbers.
 
 | | |
 |---|---|
 | World | `PVEF Core/Worlds/PVEF Arland.ent` |
-| Layers | `PVEF Core/Worlds/PVEF Arland_Layers/` — seven, listed in §1b |
+| Layers | `PVEF Core/Worlds/PVEF Arland_Layers/` — seven, listed under Copying from PVEF Arland |
 | Mission header | `PVEF Core/Missions/PVEF_Arland.conf` |
 | Terrain | Arland (~4 km), path B sub-scene |
 | Bases | 5 RELAY, 2 LARGE, 3 SMALL, + MOB + offshore anchor |
 | Relay transmit range | 1000 m each |
 | Victory threshold | 10 control points |
-| Objectives open | **1** (small map — see §8), 60 s refill, cluster 500 m / max 2 |
+| Objectives open | **1** (small map — see Tuning), 60 s refill, cluster 500 m / max 2 |
 | Graph | 3 lateral neighbours, no link cap |
 | AI ceiling | 512 |
 | Counter-attacks | 13 placed, all `_12` templates with overrides |
