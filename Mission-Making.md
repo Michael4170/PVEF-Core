@@ -1,6 +1,6 @@
 # Building a PVEF mission
 
-How to stand up a new PvE mission on PVEF Core. Written against the live project (`PVEF Core`, GUID `6A22BCD5749BFA2B`) and the shipped reference world `PVEF Arland`, so every path, GUID and attribute name below is one that currently exists — not one the plan said it would.
+How to stand up a new PvE mission on PVEF Core. Written against `PVEF Core` (GUID `6A22BCD5749BFA2B`) and the reference world `PVEF Arland` that ships with it.
 
 **Read this once end to end before you place anything.** Roughly half the steps exist because of a failure that is silent — the mission boots, looks right, and does the wrong thing hours later.
 
@@ -80,7 +80,7 @@ PVEF Core/Worlds/PVEF Arland_Layers/
 
 **Open PVEF Arland in a second World Editor window, select what you want, Ctrl+C, and paste it into your world.**
 
-Per §2.5b of the plan this is a **Place**, not a Duplicate or an Override: you are copying entity *setups* that reference prefabs by GUID. Nothing of PVEF Core's enters your addon, and you keep getting its updates. It also means a copied base is not a snapshot that goes stale — it still points at `PVEF_Base_Small.et` and inherits any future change to it.
+This is a **Place**, not a Duplicate or an Override: you are copying entity *setups* that reference prefabs by GUID. Nothing of PVEF Core's enters your addon, and you keep getting its updates. It also means a copied base is not a snapshot that goes stale — it still points at `PVEF_Base_Small.et` and inherits any future change to it.
 
 ### What to copy for what
 
@@ -100,7 +100,7 @@ Per §2.5b of the plan this is a **Place**, not a Duplicate or an Override: you 
 
 Every one of these fails silently if you skip it.
 
-1. **Navmesh references, if you copied the Managers layer.** `SCR_AIWorld`'s three `NavmeshWorldComponent`s still point at Arland's meshes. This is a live fault in `PVEF Everon` — the layer was copied, the world sits at Everon coordinates, and the navmeshes still say `GM_Arland.nmn`. Nothing errors; AI simply cannot path, which reads as broken AI rather than missing config. **Re-point them first** (§3).
+1. **Navmesh references, if you copied the Managers layer.** `SCR_AIWorld`'s three `NavmeshWorldComponent`s still point at Arland's meshes. Nothing errors; AI simply cannot path, which reads as broken AI rather than missing config. **Re-point them first** (§3).
 
 2. **`m_sProfileId` must be unique.** A copied base arrives carrying Arland's key. Two bases with the same profileId means per-base config silently attaches to the wrong one. The validator warns at boot — read it (§9, line 3).
 
@@ -161,7 +161,7 @@ AI pathing needs `SCR_AIWorld`'s `NavmeshWorldComponent`s to *point at* `.nmn` f
 
 The Game Master navmeshes cover the whole terrain and BI maintains them. This works because path B changes no terrain — you place buildings *on* the existing heightmap. Find the equivalent three for your terrain under `worlds/GameMaster/Navmeshes/` and `worlds/MP/Navmeshes/`.
 
-> **COPYING ARLAND'S MANAGERS LAYER BRINGS ARLAND'S NAVMESH WITH IT.** This is a real fault, live in `PVEF Everon`: the layer was copied, its three navmesh references still point at `GM_Arland.nmn`, and the world sits at Everon coordinates. Nothing errors. AI simply cannot path. **If you copy the Managers layer, re-point the navmeshes before anything else** — it is the single most expensive thing on the §1b list to get wrong, because it presents as the framework being broken.
+> **COPYING ARLAND'S MANAGERS LAYER BRINGS ARLAND'S NAVMESH WITH IT.** Its three navmesh references still point at `GM_Arland.nmn`, wherever your world actually is. Nothing errors. AI simply cannot path. **If you copy the Managers layer, re-point the navmeshes before anything else** — it is the single most expensive thing on the §1b list to get wrong, because it presents as the framework being broken.
 
 **You must generate your own the moment you change the ground.** Flattening under a base, Terrain Tools → Bake Selection, or placing a composition that cuts into a slope all invalidate the baked mesh locally. Then: Navmesh Tool → Connect → Generate (or *Rebuild changed tiles*), and **tick "Autosave when done" or click Save afterwards** — without that the generated mesh is discarded and you have done nothing.
 
@@ -308,7 +308,7 @@ Place it where the attack should come *from* — the spawn position is the autho
 
 ### The one thing that will bite you
 
-**A nested entity needs a `Hierarchy` component or it is never a runtime child.** This is the single fault that cost most of M2 — the waypoint existed, was correctly placed, and was invisible. The shipped templates have it, and so does anything copied from Arland. If you ever build a spawn point from scratch, this is the thing to get right, and the "no waypoint parented" warning names it explicitly.
+**A nested entity needs a `Hierarchy` component or it is never a runtime child.** Without it the waypoint exists and is correctly placed, but the counter-attack never sees it. The shipped templates have it, and so does anything copied from Arland. If you ever build a spawn point from scratch, this is the thing to get right, and the "no waypoint parented" warning names it explicitly.
 
 ### Tuning a placed counter-attack
 
@@ -350,6 +350,27 @@ Two consequences worth knowing before you file a bug report:
 - **A wave in a firefight is never given up on.** The check resets whenever the headcount changes, so a wave taking casualties or still populating is left alone however little ground it covers.
 
 If you see `GIVEN UP ON` with a **full alive count** on a wave that was plainly in contact, that *is* a bug — report it with the log lines.
+
+### When a counter-attack takes a base back — retake objectives
+
+If a counter-attack takes back a base the players had captured, PVEF opens it again as a **retake objective**, with its own task marker, so players can see it needs taking back. There is nothing to place or configure — it works on any map.
+
+- **It opens straight away.** No refill delay.
+- **It does not count toward `m_iActiveObjectives`.** The normal front keeps its slots, so a retake is extra.
+- **Winning it back opens nothing new.** The retake simply closes.
+- **The base's garrison stays off.** The counter-attack force that took it is the defence.
+- **The MOB and the offshore anchor are never retakes.**
+- **Half of a clustered objective** that is lost while the objective is still open is left alone — it already has its task.
+
+The log names each one:
+
+```
+Governor: Mosshill LOST to USSR - opened as a retake objective.
+  RETAKE  Mosshill  (outside the objective count, no garrison)
+Governor: retake Mosshill WON BACK.
+```
+
+A retake marker only shows while the base is inside radio coverage, like any other seize task. If losing a relay pushes the base out of coverage, the marker appears once coverage comes back.
 
 ---
 
@@ -401,6 +422,73 @@ A depot is not an objective, so its defenders must not be gated like a garrison.
 - a depot away from every base leaves them **unclaimed**, never gated, holding ambient-rotation slots all round and inflating the arming radius for every real garrison on the map.
 
 Consider `m_eImportance = LOW` as well, so depot guards yield AI budget to objective fights. NORMAL is defensible if you want the depot properly held — make it a decision rather than a default.
+
+### Do not try to change the map icon colour
+
+The depot's icon is green and **there is no authoring route to change it.** None of these work, and all fail silently:
+
+1. `SCR_MapDescriptorComponent`'s own `Faction` field — setting it to 2 changed nothing, not even to blue, which is what 2 means.
+2. Adding `SCR_FactionAffiliationComponent` set to USSR — no effect.
+3. Calling `MapItem.SetFactionIndex()` directly from a script component — no effect.
+4. Overriding the icon asset.
+
+**The reason:** colour is a property of the *(descriptor type, faction)* pair held on the `MapLayer`, not on the entity. `MapLayer.GetPropsFor(iFaction, type)` is where it comes from, and `Icon (generic)` evidently renders the same colour across all three faction indices. Bases are red because they carry `SCR_CampaignMilitaryBaseMapDescriptorComponent`, a subclass whose `MapSetup(Faction)` runs at runtime — the plain descriptor on a depot has no such call.
+
+If you need supply points to read differently on the map, use **`Display Name`** on the descriptor and a non-generic **`Main Type`**. A labelled icon of a different shape separates them from bases better than colour would, and costs nothing.
+
+---
+
+## 6c. Mortars
+
+A mortar position is a crewed, emplaced tube that shells ground near a base. **It stays quiet until that base's counter-attacks are finished**, so it is the next stage of the fight for a base rather than something that opens on first contact. Turn the whole feature on or off with `m_bMortars` on `PVEF_Manager` (on by default).
+
+### Place it in three steps
+
+1. Place `AmbientPatrolSpawnpoint_USSR_Mortar` where the **tube** should sit.
+2. **Parent it to the base it belongs to.**
+3. Drag its child waypoint onto the ground you want **shelled**. That waypoint is the impact point.
+
+The template already names the tube, the crew and the fire-mission waypoint, so there is nothing else to set for a working position.
+
+### How far the tube can be from its waypoint
+
+**At least 25 m, at most 400 m.** Closer than 25 m is rejected with a warning, on the assumption the waypoint was never dragged off the template. Past 400 m the aim point is quietly pulled back to 400 m along the bearing, so every round lands short. The limit is the game's own: crews will not fire much further than about 400 m.
+
+Rounds scatter around the waypoint, so for the whole spread to be reachable, keep the tube inside these distances:
+
+| Beaten zone | Max tube-to-waypoint distance |
+|---|---|
+| 150 m | 250 m |
+| 100 m | 300 m |
+| 80 m | 320 m |
+| 60 m | 340 m |
+| 35 m (the minimum) | 365 m |
+
+Leave some margin — with a 150 m zone, about 200 m is a sensible placement. For more standoff, use a smaller beaten zone.
+
+### Tuning a placed mortar — `PVEF_MortarTag`
+
+| Attribute | Default | What it does |
+|---|---|---|
+| `m_fBeatenZone` | 0 | how far rounds scatter around the waypoint. `0` uses the waypoint's own completion radius (the circle you see in the editor). Never less than 35 m. |
+| `m_fPlayerPresenceRadius` | 300 | a player must be this close to the **impact point** for the tube to fire. Also what quiets it once the front moves on. |
+| `m_fPlayerClearRadius` | 0 → 212 m | how close a player must be to *hold* the crew spawn. Nothing is lost — it spawns once they move off. |
+| `m_iCrewReplacements` | 1 | how many times a killed crew is replaced. `0` = one crew only. |
+| `m_iRespawnSeconds` | 0 → 15 s | gap before a replacement crew arrives |
+| `m_iGroupMultiplier` | 2 | AI budget reserved for the crew, in fours. **Does not resize the crew.** |
+| `m_sTargetBaseId` | empty | override the base. Empty = the base it is parented to, then the nearest. |
+
+**Destroying the tube ends the position for the round** — the tube is never respawned, only the crew.
+
+Rounds go out in groups of four, and the gap between groups is the crew re-laying the gun. `m_iShotsPerMission`, `m_iSecondsBetweenMissions` and `m_iSecondsBetweenRounds` do not change the rate of fire.
+
+### Reading the log
+
+```
+Mortar: mortar at [x, y] burst 1 OPEN - 4 round(s) onto [x, y], 380m out, ...
+```
+
+`380m out` is the range actually being fired at. If it reads **400** every time, the tube is too far from its waypoint — move it closer. `has NO child waypoint` or `impact point only Nm away` means the waypoint was never placed or never dragged off the template.
 
 ---
 
@@ -454,9 +542,11 @@ Select the game mode entity in the world and edit `PVEF_Manager`. There is no co
 | `m_iMaxClusterSize` | 2 | stops greedy clustering chaining across a dense map |
 | `m_fMinSeparation` | 600 | keep separate objectives at least this far apart |
 
-**Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, set after a playtest, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it** (§1b).
+Retake objectives (§6) sit outside all of these: they do not count toward `m_iActiveObjectives` and do not wait for `m_fRefillDelaySec`.
 
-`m_fRefillDelaySec 60` was settled by play against LinearConflictPVE's 300 and this project's own earlier recommendation of 90–180. **Do not raise it back on the strength of those numbers.**
+**Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it** (§1b).
+
+`m_fRefillDelaySec 60` is the tested value. Longer delays leave players with nothing to do between objectives.
 
 ### Map shape
 
@@ -511,9 +601,9 @@ Then check the world log for `World doesn't contain RadioManagerEntity`. On PVEF
 
 ### Testing discipline
 
-**Game Master teleporting does not test the loop.** It tests the gate against a movement pattern no player has — one session measured ~790 m covered in seven seconds. It is a fine way to exercise every base quickly, and it is how the arming bug was caught, but it cannot tell you whether the pacing is right. Run both: one Game Master sweep for coverage, one played session end to end for feel.
+**Game Master teleporting does not test the loop.** It tests the gate against a movement pattern no player has — one session measured ~790 m covered in seven seconds. It is a fine way to exercise every base quickly, but it cannot tell you whether the pacing is right. Run both: one Game Master sweep for coverage, one played session end to end for feel.
 
-And when you report a problem: **state how you killed something.** Killing by damage and deleting in Game Master take different code paths, and at least one finding turns entirely on whether the group entity survives its last member.
+And when you report a problem: **state how you killed something.** Killing by damage and deleting in Game Master take different code paths, and they can behave differently.
 
 ---
 
@@ -521,17 +611,16 @@ And when you report a problem: **state how you killed something.** Killing by da
 
 Plan around these — they are gaps, not settings you have missed.
 
-- **No road or air patrols.** The ground between the MOB and the front is empty by design right now, and every drive is safe. Road patrols are the next core feature; air patrols are struck.
-- **No artillery or mortars.** Next after patrols.
+- **No road or air patrols.** The ground between the MOB and the front is empty by design right now, and every drive is safe.
 - **No rank gates or arsenal tiers.** Addon territory, not core.
 - **PVEF's own state is not persisted.** Vanilla persistence carries base ownership; the governor's objectives, counter-attack wave counts and the civilian latch reset on reload. See §7.
 - **No terrain-profile generator, and there will not be one.** Bases are tagged by hand in the editor; this document plus copying from PVEF Arland is the authoring path.
 
-### Landed since this document was first written
+### What is included
 
-Do not plan around these being missing — they work, and all of them are placed and working in PVEF Arland:
+All of these work, and all of them are placed and working in PVEF Arland:
 
-**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** (§6) · **supply points** (§6b).
+**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** (§6) · **supply points** (§6b) · **retake objectives** — a base lost to a counter-attack gets its task marker back (§6) · **mortars** (§6c).
 
 ---
 
@@ -552,6 +641,7 @@ The reference world, and the thing to copy from (§1b). Also useful as a sanity 
 | Graph | 3 lateral neighbours, no link cap |
 | AI ceiling | 512 |
 | Counter-attacks | 13 placed, all `_12` templates with overrides |
+| Mortars | 2, both shelling Arleville |
 | Supply points | 1 depot (`Timberridge_Supply_Depot`) with 2 roaming-tagged guards and an inherited cache |
 | Navmesh | BI's Game Master meshes, reused |
 | Peak AI observed | 56, with a clustered objective open |
