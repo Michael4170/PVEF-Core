@@ -16,16 +16,14 @@ OBJECTIVE GOVERNOR
 AI WHERE THE FIGHT IS
 - Garrisons exist only at open objectives, and only once a player closes on one. The rest of the island is dark and costs nothing.
 - A base you clear stays cleared. PVEF sets the active-AI ceiling itself.
-- Bodies and wrecks are cleared faster than vanilla's clock, away from players.
+- Bodies and wrecks are cleared, away from players.
 
 COUNTER-ATTACKS
 - Finite waves, each released when the last is wiped.
-- They spawn and hold where the map author chose. No random bearing, no beeline for the flag.
-- One that cannot be afforded declines rather than half-spawning.
-- They stay when you leave. Walking away is not how you beat one.
 - A wave that stops making progress is given up on, so a badly sited counter cannot hold AI all round. The log names the spot.
+- Mortar teams, released once a base's counter-attacks are spent
 
-NOT IN YET: road and air patrols, artillery, round rotation, rank gates, Everon profile, terrain generator, module API docs. Config keys will move.
+NOT IN YET: road and air patrols, Everon map, Kolguyev map.
 
 Credit to Gramps303's ConflictPVERemixedVanilla2.0 and LinearConflictPVE - they set the bar. PVEF shares no code or assets with either.
 
