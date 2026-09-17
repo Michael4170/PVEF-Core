@@ -452,19 +452,19 @@ The template already names the tube, the crew and the fire-mission waypoint, so 
 
 ### How far the tube can be from its waypoint
 
-**At least 25 m, at most 400 m.** Closer than 25 m is rejected with a warning, on the assumption the waypoint was never dragged off the template. Past 400 m the aim point is quietly pulled back to 400 m along the bearing, so every round lands short. The limit is the game's own: crews will not fire much further than about 400 m.
+**At least 25 m, at most 1000 m.** Closer than 25 m is rejected with a warning, on the assumption the waypoint was never dragged off the template. Past 1000 m the aim point is quietly pulled back to 1000 m along the bearing, so every round lands short. At longer ranges the crew fires on a stronger charge automatically; there is nothing to set.
 
 Rounds scatter around the waypoint, so for the whole spread to be reachable, keep the tube inside these distances:
 
 | Beaten zone | Max tube-to-waypoint distance |
 |---|---|
-| 150 m | 250 m |
-| 100 m | 300 m |
-| 80 m | 320 m |
-| 60 m | 340 m |
-| 35 m (the minimum) | 365 m |
+| 150 m | 850 m |
+| 100 m | 900 m |
+| 80 m | 920 m |
+| 60 m | 940 m |
+| 35 m (the minimum) | 965 m |
 
-Leave some margin — with a 150 m zone, about 200 m is a sensible placement. For more standoff, use a smaller beaten zone.
+Leave some margin — with a 150 m zone, about 800 m is a sensible placement.
 
 ### Tuning a placed mortar — `PVEF_MortarTag`
 
@@ -485,10 +485,10 @@ Rounds go out in groups of four, and the gap between groups is the crew re-layin
 ### Reading the log
 
 ```
-Mortar: mortar at [x, y] burst 1 OPEN - 4 round(s) onto [x, y], 380m out, ...
+Mortar: mortar at [x, y] burst 1 OPEN - 4 round(s) onto [x, y], 798m out, ... Solve: charge 3 of 5, ...
 ```
 
-`380m out` is the range actually being fired at. If it reads **400** every time, the tube is too far from its waypoint — move it closer. `has NO child waypoint` or `impact point only Nm away` means the waypoint was never placed or never dragged off the template.
+`798m out` is the range actually being fired at, and `charge 3 of 5` is the charge the crew is using for it. If the range reads **1000** every time, the tube is too far from its waypoint — move it closer. `has NO child waypoint` or `impact point only Nm away` means the waypoint was never placed or never dragged off the template.
 
 ---
 
