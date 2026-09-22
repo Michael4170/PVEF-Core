@@ -304,7 +304,7 @@ Each already carries `PVEF_CounterAttackTag`, the matching group prefab, a budge
 2. **Parent it to the base it attacks.**
 3. Move its child defend waypoint onto the ground you want held.
 
-Place it where the attack should come *from* — the spawn position is the author's decision, not a random bearing. PVEF deliberately does not randomise it: you picked that spot by reading terrain, which beats five procedural tests.
+Place it where the attack should come *from*. By default every wave spawns exactly there — you picked that spot by reading terrain, which beats five procedural tests. If you want waves to come in from slightly different places each time, turn on spawn scatter (below).
 
 ### The one thing that will bite you
 
@@ -320,6 +320,7 @@ Place it where the attack should come *from* — the spawn position is the autho
 | `m_iGroupMultiplier` | matches template | AI budget reserved per wave, in fours. **Does not resize the force.** |
 | `m_sGroupPrefab` | matches template | what actually decides the size |
 | `m_fPlayerClearRadius` | 0 → 212 m | how close a player must be to *hold* a wave. Not lost — it fires on a later pass. |
+| `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — every wave spawns where you placed it. See below. |
 | `m_sTargetBaseId` | empty | override the target. Empty = the base it is parented to, then the nearest. |
 
 **Two traps in that table.**
@@ -327,6 +328,33 @@ Place it where the attack should come *from* — the spawn position is the autho
 *The prefab decides the size, the multiplier decides the reservation.* If you override `m_sGroupPrefab` to a bigger group and leave the multiplier alone, the budget pre-flight under-reserves and the wave is released into headroom that cannot hold it — it arrives piecemeal, which reads as bad balance rather than as a decision. PVEF Arland's `Beauregard_Counter_1` does this correctly: `_12` template, multiplier raised to 6, group prefab swapped to `Counter_24`.
 
 *But prefer placing the right template over editing a `_12`.* **Every** counter on PVEF Arland is a `_12` template with overrides, which means the prefab name in the hierarchy no longer tells you the force size — worth knowing before you copy one across expecting twelve men. Place the `_24` when you want 24.
+
+### Spawn scatter (optional)
+
+Set `m_fSpawnScatterRadius` above 0 and **each wave spawns at a random point within that radius** of the placed spawn point, so players cannot pre-aim one treeline. The defend waypoint does not move.
+
+Every rolled point is checked before a wave spawns there:
+
+- above sea level (inland ponds and lakes are **not** checked);
+- ground no steeper than about 30°;
+- clear of rocks, fences and buildings;
+- no player inside the clear radius of the new spot;
+- no more than halfway from the placed spot to the objective;
+- **at least 100 m from the base and from the defend waypoint.**
+
+It gets three tries per wave. If none pass, the wave spawns at your placed spot, exactly as it would with scatter off.
+
+**Suggested radius:** about 15–25% of the counter's distance to its objective — **30–50 m** for a small shift along the same approach, **75–100 m** for a different angle in open ground. Keep the radius inside ground you would happily have placed the spawn point on: the checks catch slopes and objects, not whether the AI can walk out of a boxed-in dip. If a roll does land somewhere the wave cannot leave, the stuck detector gives up on it and logs where it stopped — shrink that counter's radius.
+
+The log shows each scattered wave:
+
+```
+Counter-attack [x, y] wave 2 scattered 107m from its placed position, to [x, y].
+```
+
+The rolls are spread evenly over the whole circle, so the average wave lands about two-thirds of the radius out and few land right at the edge. A 150 m radius typically gives 50–140 m.
+
+Scatter costs nothing measurable: it runs once per wave, at spawn, and never per tick. The server-wide `m_fSpawnScatterScale` on `PVEF_Manager` multiplies every radius — see Tuning.
 
 ### Waves, and what happens when one does not arrive
 
@@ -473,6 +501,7 @@ Leave some margin — with a 150 m zone, about 800 m is a sensible placement.
 | `m_fBeatenZone` | 0 | how far rounds scatter around the waypoint. `0` uses the waypoint's own completion radius (the circle you see in the editor). Never less than 35 m. |
 | `m_fPlayerPresenceRadius` | 300 | a player must be this close to the **impact point** for the tube to fire. Also what quiets it once the front moves on. |
 | `m_fPlayerClearRadius` | 0 → 212 m | how close a player must be to *hold* the crew spawn. Nothing is lost — it spawns once they move off. |
+| `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — the tube goes where you placed it. See below. |
 | `m_iCrewReplacements` | 1 | how many times a killed crew is replaced. `0` = one crew only. |
 | `m_iRespawnSeconds` | 0 → 15 s | gap before a replacement crew arrives |
 | `m_iGroupMultiplier` | 2 | AI budget reserved for the crew, in fours. **Does not resize the crew.** |
@@ -481,6 +510,22 @@ Leave some margin — with a 150 m zone, about 800 m is a sensible placement.
 **Destroying the tube ends the position for the round** — the tube is never respawned, only the crew.
 
 Rounds go out in groups of four, and the gap between groups is the crew re-laying the gun. `m_iShotsPerMission`, `m_iSecondsBetweenMissions` and `m_iSecondsBetweenRounds` do not change the rate of fire.
+
+### Spawn scatter (optional)
+
+Set `m_fSpawnScatterRadius` above 0 and the **tube position is picked at random within that radius, once per round**, so it is not in the same pit every session. Replacement crews go to wherever it landed. The impact waypoint does not move, and the tube still turns to face it from its new spot — the whole composition turns with it, sandbags included.
+
+The same ground checks as counter-attacks apply (sea, slope, objects), plus:
+
+- **never further** from the impact point than where you placed it, and not much closer — between 60% and 100% of the placed distance;
+- never within 110 m of the impact point;
+- **at least 100 m from the base it is parented to.**
+
+Three tries; if none pass, the tube goes where you placed it. **30–50 m is enough.** If the tube is part of a composition with sandbags, keep it small — the whole composition moves. The log shows it at startup:
+
+```
+Mortar [x, y] scattered 27m for this round, to [x, y] - 315m from its impact point (placed 337m).
+```
 
 ### Reading the log
 
@@ -547,6 +592,14 @@ Retake objectives (see Counter-attacks) sit outside all of these: they do not co
 **Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it.**
 
 `m_fRefillDelaySec 60` is the tested value. Longer delays leave players with nothing to do between objectives.
+
+### Spawn scatter
+
+| Attribute | Default | |
+|---|---|---|
+| `m_fSpawnScatterScale` | 1 | multiplies every counter-attack and mortar `m_fSpawnScatterRadius`. `0` = scatter off server-wide, `1` = each spawn point's own radius, `2` = double. Spawn points left at radius 0 never scatter, whatever this says. |
+
+You do not need to touch this to use scatter — setting a spawn point's radius is enough. It is there to turn scatter down or off for a whole server without editing every placement.
 
 ### Map shape
 
@@ -620,7 +673,7 @@ Plan around these — they are gaps, not settings you have missed.
 
 All of these work, and all of them are placed and working in PVEF Arland:
 
-**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars**.
+**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars** · **optional spawn scatter** for counter-attacks and mortars.
 
 ---
 
