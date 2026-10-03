@@ -31,8 +31,6 @@ ALSO WORKING
 
 NOT IN YET: road and air patrols, Everon map & Kolguyev map 
 
-Credit to Gramps303's ConflictPVERemixedVanilla2.0 and LinearConflictPVE - they set the bar. PVEF shares no code or assets with either.
-
 Mission making, configuration and troubleshooting:
 https://github.com/Michael4170/PVEF-Core/blob/main/Mission-Making.md
 
