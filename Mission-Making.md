@@ -617,7 +617,7 @@ You do not need to touch this to use scatter — setting a spawn point's radius 
 | `m_bAssignImportance` | on | **leave this on at 512.** Vanilla ships base compositions at LOW importance, so without this pass the engine sheds objective garrisons *before* roadside ambience. |
 | `m_bBudgetReservations` | on | check headroom before releasing a counter-attack wave |
 
-512 is taken from ConflictPVERemixedVanilla2.0's own `SCR_AIWorld` prefab — a measured reference rather than a guess. **`0` is a sentinel meaning "leave the world's value alone" and never reaches the engine**, because the engine reads a ceiling of 0 as permanently full and spawns nothing.
+512 is a measured reference value rather than a guess. **`0` is a sentinel meaning "leave the world's value alone" and never reaches the engine**, because the engine reads a ceiling of 0 as permanently full and spawns nothing.
 
 The ceiling is a *capacity*, not a density control. With the governor holding a small objective count the natural population sits far below it — 56 peak observed on Arland. Raising it does not put more AI on the ground; objective count and counter-attack size do.
 
