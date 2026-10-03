@@ -660,15 +660,6 @@ And when you report a problem: **state how you killed something.** Killing by da
 
 ---
 
-## 10. What PVEF does not do yet
-
-Plan around these — they are gaps, not settings you have missed.
-
-- **No road or air patrols.** The ground between the MOB and the front is empty by design right now, and every drive is safe.
-- **No rank gates or arsenal tiers.** Addon territory, not core.
-- **PVEF's own state is not persisted.** Vanilla persistence carries base ownership; the governor's objectives, counter-attack wave counts and the civilian latch reset on reload. See The mission header.
-- **No terrain-profile generator, and there will not be one.** Bases are tagged by hand in the editor; this document plus copying from PVEF Arland is the authoring path.
-
 ### What is included
 
 All of these work, and all of them are placed and working in PVEF Arland:
