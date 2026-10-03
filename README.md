@@ -1,7 +1,7 @@
 <img width="1920" height="1080" alt="PVEFCore_Banner" src="https://github.com/user-attachments/assets/3f4704e9-df8e-40bc-94cc-9e4e368313db" />
 
 
-PVEF is a PvE framework for Arma Reforger built on vanilla Conflict. Base game only - no dependencies.
+PVEF is a PvE framework for Arma Reforger built on vanilla Conflict.
 
 ALPHA, for testing. Working now:
 
@@ -22,6 +22,9 @@ COUNTER-ATTACKS
 - They stay when you leave.
 - A wave that stops making progress is given up on, so a badly sited counter cannot hold AI all round. The log names the spot.
 
+ADDITIONAL ADDONS
+- PVEF Vehicle Counters - Just add the mods and set it up through the server Json
+
 ALSO WORKING
 - The enemy side is locked - players cannot join USSR or FIA.
 - The enemy takes bases back, it does not just defend them.
@@ -29,7 +32,6 @@ ALSO WORKING
 - Civilians in towns the round has reached.
 - Server-side save, on the game's own persistence.
 
-NOT IN YET: road and air patrols, Everon map & Kolguyev map 
 
 Mission making, configuration and troubleshooting:
 https://github.com/Michael4170/PVEF-Core/blob/main/Mission-Making.md
