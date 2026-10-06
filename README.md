@@ -1,4 +1,4 @@
-<img width="1920" height="1080" alt="PVEFCore_Banner" src="https://github.com/user-attachments/assets/3f4704e9-df8e-40bc-94cc-9e4e368313db" />
+<img width="1920" height="1080" alt="PVEFCore_Banner" src="https://github.com/user-attachments/assets/39d5848b-df1c-4ffa-a36e-04adf291ff5a" />
 
 
 PVEF is a PvE framework for Arma Reforger built on vanilla Conflict.
