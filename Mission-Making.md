@@ -310,6 +310,10 @@ Place it where the attack should come *from*. By default every wave spawns exact
 
 **A nested entity needs a `Hierarchy` component or it is never a runtime child.** Without it the waypoint exists and is correctly placed, but the counter-attack never sees it. The shipped templates have it, and so does anything copied from Arland. If you ever build a spawn point from scratch, this is the thing to get right, and the "no waypoint parented" warning names it explicitly.
 
+### Large counters spawn as groups of 12
+
+A `_24` or `_48` counter is still **one counter** — one spawn point, one defend waypoint, one budget reservation, one wipe to advance the wave — but its infantry is fielded as groups of **at most 12**, because one big group bogs down when it reaches a single defend marker. Nothing to place or set: you still place only the one defend waypoint, and the extra groups find their own positions around it. It is fixed behaviour with no setting, so it applies to every infantry counter on the server.
+
 ### Tuning a placed counter-attack
 
 | Attribute | Default | What it does |
@@ -384,7 +388,7 @@ If you see `GIVEN UP ON` with a **full alive count** on a wave that was plainly 
 If a counter-attack takes back a base the players had captured, PVEF opens it again as a **retake objective**, with its own task marker, so players can see it needs taking back. There is nothing to place or configure — it works on any map.
 
 - **It opens straight away.** No refill delay.
-- **It does not count toward `m_iActiveObjectives`.** The normal front keeps its slots, so a retake is extra.
+- **It does not count toward `m_iActiveObjectives`.** The normal front keeps its slots, so a retake is extra. It sits outside the normal objective sequence and opens alongside the active objective, so the task players are already working on stays open.
 - **Winning it back opens nothing new.** The retake simply closes.
 - **The base's garrison stays off.** The counter-attack force that took it is the defence.
 - **The MOB and the offshore anchor are never retakes.**
@@ -468,7 +472,7 @@ If you need supply points to read differently on the map, use **`Display Name`**
 
 ## 6c. Mortars
 
-A mortar position is a crewed, emplaced tube that shells ground near a base. **It stays quiet until that base's counter-attacks are finished**, so it is the next stage of the fight for a base rather than something that opens on first contact. Turn the whole feature on or off with `m_bMortars` on `PVEF_Manager` (on by default).
+A mortar position is a crewed, emplaced tube that shells ground near a base. **It stays quiet until that base's counter-attacks are finished**, so it is the next stage of the fight for a base rather than something that opens on first contact. Once they are finished it fires regardless of whether the base has since been taken or is still an open objective, and that holds across a server restart. Turn the whole feature on or off with `m_bMortars` on `PVEF_Manager` (on by default).
 
 ### Place it in three steps
 
@@ -563,7 +567,7 @@ SCR_MissionHeaderCampaign {
 
 Three notes: it is **`SCR_MissionHeaderCampaign`**, not the plain header; `SystemsConfig` points at **vanilla's** `ConflictSystems.conf`, unchanged; and `m_sGameMode "Conflict"` is what puts it in the right scenario list.
 
-Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. **PVEF's own state is not serialised**, so after a reload expect the governor's open objectives, counter-attack wave counts and the civilian latch to come back at defaults. Base ownership, which is what players notice, is vanilla's and does persist.
+Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. **Finished counter-attacks and mortars stay finished across a server restart**, so clearing a base's counter-attacks and restarting does not bring them back when the base is retaken. There is no file to edit and nothing to configure. They reset when the mission ends, however it ends, and when the Conflict save is deleted to start the map over. **A Workbench play session always starts with every counter-attack and mortar armed**, so you never need to clear any saved state while authoring. The rest of PVEF's own state — the governor's open objectives, the current wave of a counter-attack still in progress, and the civilian latch — is not serialised and comes back at defaults after a reload. Base ownership, which is what players notice, is vanilla's and does persist.
 
 The **scenario ID** a server config needs is the header's own GUID plus path — for PVEF Arland:
 
