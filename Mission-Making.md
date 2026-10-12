@@ -110,10 +110,6 @@ Every one of these fails silently if you skip it.
 
 5. **`m_iActiveObjectives` is 1 on Arland deliberately**, because it is small. It is on the `PVEF_Manager` instance, so it comes across if you copy the game mode entity. Most maps want the shipped default of 2, or 3 for Everon scale.
 
-### And one that is easy to miss
-
-Arland's counter-attacks are all `_12` templates with their group prefab and multiplier overridden — so the prefab name in the hierarchy no longer tells you the force size. If you copy one expecting 12 men you may get 24. Check `m_sGroupPrefab` on anything you paste.
-
 ---
 
 ## 2. The world, and the five entities that must be in it
@@ -321,17 +317,11 @@ A `_24` or `_48` counter is still **one counter** — one spawn point, one defen
 | `m_iRespawns` | 2 | respawns **after** the first wave. `2` = three waves total. `-1` = endless. |
 | `m_iRespawnSeconds` | 30 | gap after a wave is wiped before the next is released. `0` = framework default (15 s). |
 | `m_fObjectiveRadius` | 100 | how much ground the force holds. **15 m makes twelve men stand on one spot.** |
-| `m_iGroupMultiplier` | matches template | AI budget reserved per wave, in fours. **Does not resize the force.** |
-| `m_sGroupPrefab` | matches template | what actually decides the size |
 | `m_fPlayerClearRadius` | 0 → 212 m | how close a player must be to *hold* a wave. Not lost — it fires on a later pass. |
 | `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — every wave spawns where you placed it. See below. |
 | `m_sTargetBaseId` | empty | override the target. Empty = the base it is parented to, then the nearest. |
 
-**Two traps in that table.**
-
-*The prefab decides the size, the multiplier decides the reservation.* If you override `m_sGroupPrefab` to a bigger group and leave the multiplier alone, the budget pre-flight under-reserves and the wave is released into headroom that cannot hold it — it arrives piecemeal, which reads as bad balance rather than as a decision. PVEF Arland's `Beauregard_Counter_1` does this correctly: `_12` template, multiplier raised to 6, group prefab swapped to `Counter_24`.
-
-*But prefer placing the right template over editing a `_12`.* **Every** counter on PVEF Arland is a `_12` template with overrides, which means the prefab name in the hierarchy no longer tells you the force size — worth knowing before you copy one across expecting twelve men. Place the `_24` when you want 24.
+**The force size comes from the template you place.** `m_iGroupMultiplier` and `m_sGroupPrefab` still exist on `PVEF_CounterAttackTag` but are hidden in the editor, so they cannot be changed from there. Place `_12`, `_24` or `_48` for the size you want; the template carries the matching group prefab and budget reservation.
 
 ### Spawn scatter (optional)
 
