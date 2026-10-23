@@ -272,6 +272,10 @@ Three ways a spawn point gets claimed by a base, in priority order:
 
 A group type absent from the faction's catalog resolves to an empty prefab, marks the spawn point spawned, and fields **nothing, silently**. The startup catalog dump prints `groupType -> prefab` per entry so you can check what exists rather than guessing.
 
+### Garrisons that must not move
+
+A garrison placed in a cave, bunker or room — where a normal patrol would wander out or chase gunfire down the road — should be a **hold-position garrison** rather than a patrol with a short leash. They are placed the same way, one point per soldier; see section 6d.
+
 ### Roaming patrols
 
 A patrol that should stay always-on and never go dark with an objective gets `PVEF_RoamingPatrolTag` on the spawn point, plus `m_eImportance = LOW` so it yields budget to real fights. A patrol placed well away from every base needs no tag — nothing is in range to claim it. Arland's live in `Patrols.layer`.
@@ -535,6 +539,93 @@ Mortar: mortar at [x, y] burst 1 OPEN - 4 round(s) onto [x, y], 798m out, ... So
 
 ---
 
+## 6d. Hold-position garrisons
+
+A hold-position garrison is one soldier placed to guard one exact spot — a cave mouth, a bunker, a room — who **cannot walk away from it**. He still sees, turns, aims and fires; players have to go in and clear him. Use it where an ordinary garrison would wander out of the door or chase gunfire down the road, which is exactly what a normal patrol does inside a building.
+
+It is the same machinery as any garrison — an ambient patrol spawn point — so it spawns, is budgeted and (optionally) is gated like one. Only the movement is different.
+
+### Place it in three steps
+
+1. Place **`AmbientPatrolSpawnpoint_USSR_Hold`** (`{8B42C6D1F0A97E35}`, under `Prefabs/Systems/AmbientPatrol/`) **where the soldier should stand.** In the editor it draws a purple person-shaped marker, and he spawns on that spot. **One point is one soldier**, so you place each man exactly.
+2. Decide how it is gated — see the next section. A guard on a base objective is **parented to that base**; a cave or building that is not part of an objective gets **Always Active** ticked.
+3. Optionally set a stance.
+
+To field a pair from one point, set the group prefab to `PVEF_Group_USSR_Hold_2` (`{5D1F3A7C9E24B860}`). Two men from one point stand on the same spot, so one point per soldier is the way to place them precisely.
+
+### Attributes — `PVEF_HoldPositionTag`
+
+| Attribute | Default | What it does |
+|---|---|---|
+| `m_bEnabled` | on | untick to hand the point back to normal behaviour without deleting the component |
+| `m_eStance` | Free | `Free` leaves stance to the AI. `Stand`, `Crouch` or `Prone` limits him to that stance — prone or crouched suits a doorway guard. |
+| `m_bAlwaysActive` | off | ignore base objectives — see below |
+| `m_sGroupPrefab` | `PVEF_Group_USSR_Hold_1` (`{6E2B9D41A8C37F05}`, one soldier) | what is fielded. **Empty falls back to the faction catalog, which fields a full patrol-sized squad** — almost never what you want for a guard. |
+
+### Gating — and the two ways a hold point goes dark
+
+By default a hold point is gated **exactly like any garrison**: near a capturable base it is claimed by that base and spawns only while that base is an active objective. Parenting it to the base makes that explicit and works at any range.
+
+Both of these fail silently — no error, the soldier simply never appears:
+
+1. **Placed within reach of the player MOB or the offshore anchor.** The nearest base claims it, and PVEF never spawns anything at either of those. It stays dark all round. Tick Always Active, or move it.
+2. **Placed in a cave away from every objective.** It is claimed by whichever base is nearest, which may be the wrong one.
+
+**Always Active** is the remedy for both. It reserves the point from every base pass, the same way `PVEF_RoamingPatrolTag` does: no base claims it and no objective gates it, so vanilla's own ambient distance rules decide when it is live. It still holds a slot in the ambient rotation like a roaming patrol, so do not scatter hundreds.
+
+> **An Always Active point is also protected from a base capture.** Vanilla retires a base's registered ambient points when its faction changes, and a point near a base can be registered to it. PVEF removes an Always Active hold point from every base's list at startup and revives it if it has already been retired — you will see `it had been retired before PVEF saw it - revived` in the log when that happens. This is the fault that kept the first hold points from ever spawning, and nothing in the log says so unless you look for it.
+
+### What "cannot walk" means
+
+A hold soldier stands where he spawned. He turns toward threats and fires, he does not investigate gunfire, flank, take cover or retreat, and he does not step out of the door. He does not dodge grenades or flee, which makes him easy to clear — that is part of the design.
+
+**Facing is not controllable.** Vanilla spawns the group at the spawn point's *position only*; rotating the entity does not turn the soldier. He starts with a default heading and turns once he sees something. Place him where the *position* guards the approach, not where his initial facing does.
+
+The group spawns early in the round — the logs show roughly 7–10 seconds after the world starts — and is then activated or deactivated by player distance like any ambient patrol.
+
+**Respawn follows the spawn point's own `m_iRespawnPeriod`.** The shipped default is `0`, so a cleared hold point stays cleared.
+
+### Reading the log
+
+```
+hold-position point at [x, z] -> <group prefab> (ALWAYS ACTIVE, ungated)     startup: found, and how it is gated
+    it had been retired before PVEF saw it - revived.                       startup: see the note above
+Hold position at [x, z]: SpawnPatrol call #1, prefab=..., group fielded=yes. spawned
+Hold position at [x, z]: AI movement settings locked (IDLE), stance FREE.    lock layer 1 applied
+Hold position: member 0 first pinned at [x, z].                               his body exists and is pinned
+Hold position at [x, z]: pinned 1 member(s) to zero speed, waypoints removed. lock layers 2 and 3 applied
+```
+
+**`group fielded=NO` with a prefab named** means the group prefab failed to spawn. **No `SpawnPatrol call` line at all** means the ambient system never visited the point — read the two `Hold probe` lines that follow six and twenty seconds after startup: they report whether the point is registered, spawned, eliminated, paused or has a respawn pending. For an Always Active point the probe also fixes a point that is missing from the rotation or flagged eliminated, and says so.
+
+A line like this means the lock leaked and should be reported with the surrounding log:
+
+```
+Hold position: member 0 HAS MOVED 4.5 m from where it was pinned (now [x, z]).
+```
+
+A run with no such line means he held.
+
+### For maintainers — why the lock has three layers
+
+It is tempting to simplify this to the AI settings system, which has a movement-speed limit. **Do not.** Limiting the AI's speed to `IDLE` was tried first and **did not stop the soldiers walking out of the building.** The lock is three layers, applied by `PVEF_HoldPositionTag` and re-applied every 1.5 seconds for the life of the group by `PVEF_ModdedHoldPosition`:
+
+1. **AI settings** — group and character movement-speed limited to `IDLE`, plus the optional stance limit. Kept, but not trusted alone.
+2. **No waypoint** — vanilla gives every ambient group a Defend waypoint, and Defend moves the AI between cover positions around it, which is what carried them out of the door. The hold removes every waypoint from the group.
+3. **Character speed pinned to zero** — `CharacterControllerComponent.OverrideMaxSpeed(0)` acts on the character itself rather than on the AI's decisions, so it holds whatever the AI wants. Aiming, turning and firing are separate from locomotion and keep working.
+
+It repeats because members are created after `SpawnPatrol()` returns and the engine can reset a speed override.
+
+Two API facts that cost a compile cycle: `GetMembersAlive()` and `SetMembersAlive()` **do not exist in 1.8.0.10** even though they appear in 1.7 source, and a single undefined function fails the whole module's compile.
+
+### Verified in play, and not yet
+
+**Verified on PVEF Arland:** four Always Active hold points placed in a cluster, each fielded one soldier, each was pinned to zero speed within about five seconds of spawning, and a four-minute run logged no `HAS MOVED` line. The startup revive fired and fixed two of the four.
+
+**Not yet exercised:** a hold point gated by a real base objective (parented, not Always Active); the `Stand`, `Crouch` and `Prone` stances; a non-zero `m_iRespawnPeriod`; and a large number of hold points at once. Treat those as unproven until a run covers them.
+
+---
+
 ## 7. The mission header
 
 `Missions/<Name>.conf`. PVEF Arland's, verbatim, as the template:
@@ -662,7 +753,7 @@ And when you report a problem: **state how you killed something.** Killing by da
 
 All of these work, and all of them are placed and working in PVEF Arland:
 
-**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars** · **optional spawn scatter** for counter-attacks and mortars.
+**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars** · **optional spawn scatter** for counter-attacks and mortars · **hold-position garrisons** — soldiers who guard one spot and do not leave it.
 
 ---
 
