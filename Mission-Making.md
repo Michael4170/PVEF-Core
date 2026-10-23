@@ -112,9 +112,9 @@ Every one of these fails silently if you skip it.
 
 ---
 
-## 2. The world, and the five entities that must be in it
+## 2. The world, and the six entities that must be in it
 
-Create your world as a sub-scene of the terrain world, then make a **`Managers` layer** and put these five in it. This list is copied from `PVEF Arland_Layers/Managers.layer` — it is the complete set, and four of the five fail *silently* if missing.
+Create your world as a sub-scene of the terrain world, then make a **`Managers` layer** and put these six in it. This list is copied from `PVEF Arland_Layers/Managers.layer` — it is the complete set, and most of the six fail *silently* if missing.
 
 | Entity | Prefab | Missing = |
 |---|---|---|
@@ -352,9 +352,11 @@ Scatter costs nothing measurable: it runs once per wave, at spawn, and never per
 
 ### Waves, and what happens when one does not arrive
 
+**A counter-attack only spawns once its base is an active objective.** Players being in range of an inactive base never triggers one. Once triggered, a counter-attack walks to its defend waypoint and stays live through its waves.
+
 **Waves only advance on a genuine wipe.** A wave that is chased off rather than killed neither ends nor advances, so a counter-attack you walk away from stays live indefinitely. That is deliberate — "spent" is something players earn, not something time delivers.
 
-**A wave that stops making progress is given up on.** If a wave closes less than 25 m in 90 seconds, is more than 50 m from its objective, is at full strength and is not taking casualties, PVEF deletes it and retires the counter for the round. Two log lines matter:
+**A wave that is genuinely stuck is given up on.** A counter-attack never gives up otherwise. If a wave closes less than 25 m in 90 seconds, is more than 50 m from its objective, is at full strength and is not taking casualties, PVEF deletes **that wave only**. Two log lines matter:
 
 ```
 Counter-attack [x, y] GIVEN UP ON - wave 1 closed only 2m in 90s and is still 582m from its objective, 12 alive and unengaged.
@@ -362,13 +364,13 @@ Counter-attack [x, y] GIVEN UP ON - wave 1 closed only 2m in 90s and is still 58
 Counter-attack: counter-attack at [x, y] is DONE after 1 wave(s) - GIVEN UP ON, it never reached its objective.
 ```
 
-**Read that as an authoring fault, not a bug.** The position is authored, so a replacement wave would walk onto the same ground — which is why PVEF retires the counter rather than retrying. The coordinates in the second line are where the force could not path out of. Move the spawn point.
+**Read that as an authoring fault, not a bug.** The position is authored, so a replacement wave would walk onto the same ground. The coordinates in the second line are where the force could not path out of. Move the spawn point.
 
 This is also the most likely thing to fire on a **freshly copied** counter-attack, because a pasted defend waypoint keeps its old local offset and may be pointing at ground the force cannot reach.
 
 Two consequences worth knowing before you file a bug report:
 
-- **The remaining waves are not fielded.** "Only got one wave out of four" after a `GIVEN UP ON` line is the feature working, not a wave-count bug.
+- **Only the stuck wave is given up on, not the whole counter.** A counter that has been given up on still counts as finished and stays finished across a server restart, like any other finished counter-attack.
 - **A wave in a firefight is never given up on.** The check resets whenever the headcount changes, so a wave taking casualties or still populating is left alone however little ground it covers.
 
 If you see `GIVEN UP ON` with a **full alive count** on a wave that was plainly in contact, that *is* a bug — report it with the log lines.
@@ -393,6 +395,8 @@ Governor: retake Mosshill WON BACK.
 ```
 
 A retake marker only shows while the base is inside radio coverage, like any other seize task. If losing a relay pushes the base out of coverage, the marker appears once coverage comes back.
+
+When a base is lost, front objectives that are still inside radio coverage keep their task markers, so players can see those points are still active. Only objectives that have genuinely gone out of radio range lose their task, exactly as in vanilla.
 
 ---
 
@@ -498,7 +502,7 @@ Leave some margin — with a 150 m zone, about 800 m is a sensible placement.
 | `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — the tube goes where you placed it. See below. |
 | `m_iCrewReplacements` | 1 | how many times a killed crew is replaced. `0` = one crew only. |
 | `m_iRespawnSeconds` | 0 → 15 s | gap before a replacement crew arrives |
-| `m_iGroupMultiplier` | 2 | AI budget reserved for the crew, in fours. **Does not resize the crew.** |
+| `m_iGroupMultiplier` | 2 | sizing figure for the crew's budget entry, in fours. **Does not resize the crew.** Mortar crews are exempt from the AI budget limit. |
 | `m_sTargetBaseId` | empty | override the base. Empty = the base it is parented to, then the nearest. |
 
 **Destroying the tube ends the position for the round** — the tube is never respawned, only the crew.
@@ -557,7 +561,7 @@ SCR_MissionHeaderCampaign {
 
 Three notes: it is **`SCR_MissionHeaderCampaign`**, not the plain header; `SystemsConfig` points at **vanilla's** `ConflictSystems.conf`, unchanged; and `m_sGameMode "Conflict"` is what puts it in the right scenario list.
 
-Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. **Finished counter-attacks and mortars stay finished across a server restart**, so clearing a base's counter-attacks and restarting does not bring them back when the base is retaken. There is no file to edit and nothing to configure. They reset when the mission ends, however it ends, and when the Conflict save is deleted to start the map over. **A Workbench play session always starts with every counter-attack and mortar armed**, so you never need to clear any saved state while authoring. The rest of PVEF's own state — the governor's open objectives, the current wave of a counter-attack still in progress, and the civilian latch — is not serialised and comes back at defaults after a reload. Base ownership, which is what players notice, is vanilla's and does persist.
+Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. **Finished counter-attacks and mortars stay finished across a server restart**, so clearing a base's counter-attacks and restarting does not bring them back when the base is retaken. There is no file to edit and nothing to configure. They reset when the mission ends, however it ends, and when the Conflict save is deleted to start the map over. **A Workbench play session always starts with every counter-attack and mortar armed**, so you never need to clear any saved state while authoring. PVEF Core's counter-attack and mortar state is kept inside the Conflict save, so there are no extra files in the server profile. A mortar that has not yet spawned always carries on after a restart; one that has already played out does not come back. The rest of PVEF's own state — the governor's open objectives and the civilian latch — is not serialised and comes back at defaults after a reload. Base ownership, which is what players notice, is vanilla's and does persist.
 
 The **scenario ID** a server config needs is the header's own GUID plus path — for PVEF Arland:
 
