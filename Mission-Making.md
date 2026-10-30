@@ -110,11 +110,15 @@ Every one of these fails silently if you skip it.
 
 5. **`m_iActiveObjectives` is 1 on Arland deliberately**, because it is small. It is on the `PVEF_Manager` instance, so it comes across if you copy the game mode entity. Most maps want the shipped default of 2, or 3 for Everon scale.
 
+### And one that is easy to miss
+
+A counter-attack's size is the template it was placed from — `_12`, `_24` or `_48` — and the prefab name in the hierarchy tells you which. Arland's counters are `_12` and `_24` templates placed as they ship. Group Prefab and Group Multiplier are hidden on the counter tag, so they cannot be changed in the editor. If a counter copied from an older world fields the wrong size, replace it with the template you want.
+
 ---
 
-## 2. The world, and the six entities that must be in it
+## 2. The world, and the five entities that must be in it
 
-Create your world as a sub-scene of the terrain world, then make a **`Managers` layer** and put these six in it. This list is copied from `PVEF Arland_Layers/Managers.layer` — it is the complete set, and most of the six fail *silently* if missing.
+Create your world as a sub-scene of the terrain world, then make a **`Managers` layer** and put these five in it. This list is copied from `PVEF Arland_Layers/Managers.layer` — it is the complete set, and four of the five fail *silently* if missing.
 
 | Entity | Prefab | Missing = |
 |---|---|---|
@@ -272,15 +276,41 @@ Three ways a spawn point gets claimed by a base, in priority order:
 
 A group type absent from the faction's catalog resolves to an empty prefab, marks the spawn point spawned, and fields **nothing, silently**. The startup catalog dump prints `groupType -> prefab` per entry so you can check what exists rather than guessing.
 
-### Garrisons that must not move
-
-A garrison placed in a cave, bunker or room — where a normal patrol would wander out or chase gunfire down the road — should be a **hold-position garrison** rather than a patrol with a short leash. They are placed the same way, one point per soldier; see section 6d.
-
 ### Roaming patrols
 
 A patrol that should stay always-on and never go dark with an objective gets `PVEF_RoamingPatrolTag` on the spawn point, plus `m_eImportance = LOW` so it yields budget to real fights. A patrol placed well away from every base needs no tag — nothing is in range to claim it. Arland's live in `Patrols.layer`.
 
 **An unclaimed spawn point is not free.** It never gets gated, so it holds a slot in the ambient system's rotation all round — which slows every real garrison down *and* inflates the arming radius. Three orphans on a 13-garrison front costs about three seconds of extra wait per objective. Read the "unclaimed" lines at startup; they name coordinates, nearest base and shortfall in metres.
+
+### Hold positions — caves and buildings
+
+A hold position is a garrison that **cannot move**. Its soldier spawns exactly where you placed him and stays there; he can still see, turn, aim and shoot, so players have to go in and clear him. Use it for caves, bunkers and building interiors, where an ordinary garrison would wander out of the door.
+
+Place `AmbientPatrolSpawnpoint_USSR_Hold` (`{8B42C6D1F0A97E35}`), **one per soldier**. It fields `PVEF_Group_USSR_Hold_1` — a single man — so each spawn point is his exact position. In the editor each one draws a purple person-shaped marker showing where he will stand.
+
+`PVEF_HoldPositionTag`:
+
+| Attribute | Default | What it does |
+|---|---|---|
+| `m_bEnabled` | on | untick to make it an ordinary garrison again without removing the tag |
+| `m_eStance` | Free | limits the stance — prone or crouch for a doorway, stand for a window or sentry |
+| `m_bAlwaysActive` | off | ignore base objectives and spawn like ordinary ambience. See below. |
+| `m_sGroupPrefab` | `PVEF_Group_USSR_Hold_1` | `PVEF_Group_USSR_Hold_2` fields two men on the one spot. Empty uses the faction catalog, which fields a full squad. |
+
+**At a base, it is gated like any other garrison** — parent it to the base, and it comes up with that base's objective. That is the normal use.
+
+**Away from a base, tick Always Active.** Otherwise it falls to whichever base is nearest and comes up with that one, which may not be what you want. Always Active also matters near the player MOB: a hold position claimed by the MOB **never spawns**, with no error. An Always Active hold position still takes a slot in the ambient rotation like a roaming patrol, so do not scatter hundreds of them.
+
+Two more things to know:
+
+- **Rotating the spawn point does not set his facing.** He spawns with a default heading and turns toward threats once he sees them.
+- **Respawn follows the spawn point's `m_iRespawnPeriod`** — `0`, the default, means a cleared position stays cleared.
+
+The log confirms each one locked in place:
+
+```
+[PVEF] Hold position ... pinned 1 member(s)
+```
 
 ---
 
@@ -306,13 +336,17 @@ Each already carries `PVEF_CounterAttackTag`, the matching group prefab, a budge
 
 Place it where the attack should come *from*. By default every wave spawns exactly there — you picked that spot by reading terrain, which beats five procedural tests. If you want waves to come in from slightly different places each time, turn on spawn scatter (below).
 
+**The template you place is the size you get.** Group Prefab and Group Multiplier are hidden on the counter tag, so the force size and its AI budget always match. To change a counter's size, place a different template.
+
+### Big counters spawn as groups of 12
+
+No single group in a counter-attack is larger than 12. A `_24` spawns as two groups of 12 and a `_48` as four, side by side at the spawn point — but it is still **one** counter-attack: one wave, one objective, one wipe.
+
+Each extra group is given its own defend position in a ring around the **one** defend waypoint you placed, so a large force spreads out over the ground instead of jamming on a single spot. There is nothing to place or set — keep the one defend waypoint, and `m_fObjectiveRadius` sets how wide the ring is.
+
 ### The one thing that will bite you
 
 **A nested entity needs a `Hierarchy` component or it is never a runtime child.** Without it the waypoint exists and is correctly placed, but the counter-attack never sees it. The shipped templates have it, and so does anything copied from Arland. If you ever build a spawn point from scratch, this is the thing to get right, and the "no waypoint parented" warning names it explicitly.
-
-### Large counters spawn as groups of 12
-
-A `_24` or `_48` counter is still **one counter** — one spawn point, one defend waypoint, one budget reservation, one wipe to advance the wave — but its infantry is fielded as groups of **at most 12**, because one big group bogs down when it reaches a single defend marker. Nothing to place or set: you still place only the one defend waypoint, and the extra groups find their own positions around it. It is fixed behaviour with no setting, so it applies to every infantry counter on the server.
 
 ### Tuning a placed counter-attack
 
@@ -324,8 +358,6 @@ A `_24` or `_48` counter is still **one counter** — one spawn point, one defen
 | `m_fPlayerClearRadius` | 0 → 212 m | how close a player must be to *hold* a wave. Not lost — it fires on a later pass. |
 | `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — every wave spawns where you placed it. See below. |
 | `m_sTargetBaseId` | empty | override the target. Empty = the base it is parented to, then the nearest. |
-
-**The force size comes from the template you place.** `m_iGroupMultiplier` and `m_sGroupPrefab` still exist on `PVEF_CounterAttackTag` but are hidden in the editor, so they cannot be changed from there. Place `_12`, `_24` or `_48` for the size you want; the template carries the matching group prefab and budget reservation.
 
 ### Spawn scatter (optional)
 
@@ -354,27 +386,38 @@ The rolls are spread evenly over the whole circle, so the average wave lands abo
 
 Scatter costs nothing measurable: it runs once per wave, at spawn, and never per tick. The server-wide `m_fSpawnScatterScale` on `PVEF_Manager` multiplies every radius — see Tuning.
 
-### Waves, and what happens when one does not arrive
+### When a counter-attack goes up
 
-**A counter-attack only spawns once its base is an active objective.** Players being in range of an inactive base never triggers one. Once triggered, a counter-attack walks to its defend waypoint and stays live through its waves.
+A counter-attack only spawns once **its base is an open objective** and a player is in range. Players near a base that is not an objective do not set it off.
+
+**Once it has started, it carries on.** It keeps fielding its waves after the base is captured, and after a server restart it picks up where it left off — see The mission header.
+
+### Waves, and what happens when one does not arrive
 
 **Waves only advance on a genuine wipe.** A wave that is chased off rather than killed neither ends nor advances, so a counter-attack you walk away from stays live indefinitely. That is deliberate — "spent" is something players earn, not something time delivers.
 
-**A wave that is genuinely stuck is given up on.** A counter-attack never gives up otherwise. If a wave closes less than 25 m in 90 seconds, is more than 50 m from its objective, is at full strength and is not taking casualties, PVEF deletes **that wave only**. Two log lines matter:
+**A wave that stops making progress is given up on.** If a wave closes less than 25 m in 90 seconds, is more than 50 m from its objective, is at full strength and is not taking casualties, PVEF deletes **that wave**. The counter carries on: its next wave goes up after the respawn period. If the stuck wave was its last, the counter is finished. The log:
 
 ```
 Counter-attack [x, y] GIVEN UP ON - wave 1 closed only 2m in 90s and is still 582m from its objective, 12 alive and unengaged.
   Stopped around [x, y]. THE FIX IS TO MOVE THIS COUNTER'S SPAWN POINT somewhere its force can path out of -
-Counter-attack: counter-attack at [x, y] is DONE after 1 wave(s) - GIVEN UP ON, it never reached its objective.
+  the position is authored, so a replacement wave would walk onto the same ground.
+  Only this wave is given up - 2 wave(s) remain and the next goes up after the respawn period.
 ```
 
-**Read that as an authoring fault, not a bug.** The position is authored, so a replacement wave would walk onto the same ground. The coordinates in the second line are where the force could not path out of. Move the spawn point.
+and, when the last wave is the one given up on:
+
+```
+Counter-attack: counter-attack at [x, y] is DONE after 3 wave(s) - GIVEN UP ON, it never reached its objective.
+```
+
+**Read that as an authoring fault, not a bug.** The position is authored, so the next wave starts from the same ground and is likely to stick the same way. The coordinates on the `Stopped around` line are where the force could not path out of. Move the spawn point.
 
 This is also the most likely thing to fire on a **freshly copied** counter-attack, because a pasted defend waypoint keeps its old local offset and may be pointing at ground the force cannot reach.
 
 Two consequences worth knowing before you file a bug report:
 
-- **Only the stuck wave is given up on, not the whole counter.** A counter that has been given up on still counts as finished and stays finished across a server restart, like any other finished counter-attack.
+- **Only the stuck wave is lost.** The counter still fields the waves it has left. A counter that finishes this way stays finished after a restart, like one the players wiped out.
 - **A wave in a firefight is never given up on.** The check resets whenever the headcount changes, so a wave taking casualties or still populating is left alone however little ground it covers.
 
 If you see `GIVEN UP ON` with a **full alive count** on a wave that was plainly in contact, that *is* a bug — report it with the log lines.
@@ -384,11 +427,12 @@ If you see `GIVEN UP ON` with a **full alive count** on a wave that was plainly 
 If a counter-attack takes back a base the players had captured, PVEF opens it again as a **retake objective**, with its own task marker, so players can see it needs taking back. There is nothing to place or configure — it works on any map.
 
 - **It opens straight away.** No refill delay.
-- **It does not count toward `m_iActiveObjectives`.** The normal front keeps its slots, so a retake is extra. It sits outside the normal objective sequence and opens alongside the active objective, so the task players are already working on stays open.
+- **It does not count toward `m_iActiveObjectives`.** The normal front keeps its slots, so a retake is extra.
 - **Winning it back opens nothing new.** The retake simply closes.
 - **The base's garrison stays off.** The counter-attack force that took it is the defence.
 - **The MOB and the offshore anchor are never retakes.**
 - **Half of a clustered objective** that is lost while the objective is still open is left alone — it already has its task.
+- **Open front objectives keep their tasks** as long as another base the players hold still covers them by radio. Only an objective that drops out of every held base's radio range is cancelled.
 
 The log names each one:
 
@@ -399,8 +443,6 @@ Governor: retake Mosshill WON BACK.
 ```
 
 A retake marker only shows while the base is inside radio coverage, like any other seize task. If losing a relay pushes the base out of coverage, the marker appears once coverage comes back.
-
-When a base is lost, front objectives that are still inside radio coverage keep their task markers, so players can see those points are still active. Only objectives that have genuinely gone out of radio range lose their task, exactly as in vanilla.
 
 ---
 
@@ -470,7 +512,9 @@ If you need supply points to read differently on the map, use **`Display Name`**
 
 ## 6c. Mortars
 
-A mortar position is a crewed, emplaced tube that shells ground near a base. **It stays quiet until that base's counter-attacks are finished**, so it is the next stage of the fight for a base rather than something that opens on first contact. Once they are finished it fires regardless of whether the base has since been taken or is still an open objective, and that holds across a server restart. Turn the whole feature on or off with `m_bMortars` on `PVEF_Manager` (on by default).
+A mortar position is a crewed, emplaced tube that shells ground near a base. **It stays quiet until that base's counter-attacks are finished**, so it is the next stage of the fight for a base rather than something that opens on first contact. Turn the whole feature on or off with `m_bMortars` on `PVEF_Manager` (on by default).
+
+Mortar crews are **exempt from the AI budget**, so a position never waits for headroom once its counter-attacks are done.
 
 ### Place it in three steps
 
@@ -506,7 +550,7 @@ Leave some margin — with a 150 m zone, about 800 m is a sensible placement.
 | `m_fSpawnScatterRadius` | 0 | spawn scatter, in metres. `0` = off — the tube goes where you placed it. See below. |
 | `m_iCrewReplacements` | 1 | how many times a killed crew is replaced. `0` = one crew only. |
 | `m_iRespawnSeconds` | 0 → 15 s | gap before a replacement crew arrives |
-| `m_iGroupMultiplier` | 2 | sizing figure for the crew's budget entry, in fours. **Does not resize the crew.** Mortar crews are exempt from the AI budget limit. |
+| `m_iGroupMultiplier` | 2 | no effect — mortars are exempt from the AI budget. **Does not resize the crew.** |
 | `m_sTargetBaseId` | empty | override the base. Empty = the base it is parented to, then the nearest. |
 
 **Destroying the tube ends the position for the round** — the tube is never respawned, only the crew.
@@ -539,93 +583,6 @@ Mortar: mortar at [x, y] burst 1 OPEN - 4 round(s) onto [x, y], 798m out, ... So
 
 ---
 
-## 6d. Hold-position garrisons
-
-A hold-position garrison is one soldier placed to guard one exact spot — a cave mouth, a bunker, a room — who **cannot walk away from it**. He still sees, turns, aims and fires; players have to go in and clear him. Use it where an ordinary garrison would wander out of the door or chase gunfire down the road, which is exactly what a normal patrol does inside a building.
-
-It is the same machinery as any garrison — an ambient patrol spawn point — so it spawns, is budgeted and (optionally) is gated like one. Only the movement is different.
-
-### Place it in three steps
-
-1. Place **`AmbientPatrolSpawnpoint_USSR_Hold`** (`{8B42C6D1F0A97E35}`, under `Prefabs/Systems/AmbientPatrol/`) **where the soldier should stand.** In the editor it draws a purple person-shaped marker, and he spawns on that spot. **One point is one soldier**, so you place each man exactly.
-2. Decide how it is gated — see the next section. A guard on a base objective is **parented to that base**; a cave or building that is not part of an objective gets **Always Active** ticked.
-3. Optionally set a stance.
-
-To field a pair from one point, set the group prefab to `PVEF_Group_USSR_Hold_2` (`{5D1F3A7C9E24B860}`). Two men from one point stand on the same spot, so one point per soldier is the way to place them precisely.
-
-### Attributes — `PVEF_HoldPositionTag`
-
-| Attribute | Default | What it does |
-|---|---|---|
-| `m_bEnabled` | on | untick to hand the point back to normal behaviour without deleting the component |
-| `m_eStance` | Free | `Free` leaves stance to the AI. `Stand`, `Crouch` or `Prone` limits him to that stance — prone or crouched suits a doorway guard. |
-| `m_bAlwaysActive` | off | ignore base objectives — see below |
-| `m_sGroupPrefab` | `PVEF_Group_USSR_Hold_1` (`{6E2B9D41A8C37F05}`, one soldier) | what is fielded. **Empty falls back to the faction catalog, which fields a full patrol-sized squad** — almost never what you want for a guard. |
-
-### Gating — and the two ways a hold point goes dark
-
-By default a hold point is gated **exactly like any garrison**: near a capturable base it is claimed by that base and spawns only while that base is an active objective. Parenting it to the base makes that explicit and works at any range.
-
-Both of these fail silently — no error, the soldier simply never appears:
-
-1. **Placed within reach of the player MOB or the offshore anchor.** The nearest base claims it, and PVEF never spawns anything at either of those. It stays dark all round. Tick Always Active, or move it.
-2. **Placed in a cave away from every objective.** It is claimed by whichever base is nearest, which may be the wrong one.
-
-**Always Active** is the remedy for both. It reserves the point from every base pass, the same way `PVEF_RoamingPatrolTag` does: no base claims it and no objective gates it, so vanilla's own ambient distance rules decide when it is live. It still holds a slot in the ambient rotation like a roaming patrol, so do not scatter hundreds.
-
-> **An Always Active point is also protected from a base capture.** Vanilla retires a base's registered ambient points when its faction changes, and a point near a base can be registered to it. PVEF removes an Always Active hold point from every base's list at startup and revives it if it has already been retired — you will see `it had been retired before PVEF saw it - revived` in the log when that happens. This is the fault that kept the first hold points from ever spawning, and nothing in the log says so unless you look for it.
-
-### What "cannot walk" means
-
-A hold soldier stands where he spawned. He turns toward threats and fires, he does not investigate gunfire, flank, take cover or retreat, and he does not step out of the door. He does not dodge grenades or flee, which makes him easy to clear — that is part of the design.
-
-**Facing is not controllable.** Vanilla spawns the group at the spawn point's *position only*; rotating the entity does not turn the soldier. He starts with a default heading and turns once he sees something. Place him where the *position* guards the approach, not where his initial facing does.
-
-The group spawns early in the round — the logs show roughly 7–10 seconds after the world starts — and is then activated or deactivated by player distance like any ambient patrol.
-
-**Respawn follows the spawn point's own `m_iRespawnPeriod`.** The shipped default is `0`, so a cleared hold point stays cleared.
-
-### Reading the log
-
-```
-hold-position point at [x, z] -> <group prefab> (ALWAYS ACTIVE, ungated)     startup: found, and how it is gated
-    it had been retired before PVEF saw it - revived.                       startup: see the note above
-Hold position at [x, z]: SpawnPatrol call #1, prefab=..., group fielded=yes. spawned
-Hold position at [x, z]: AI movement settings locked (IDLE), stance FREE.    lock layer 1 applied
-Hold position: member 0 first pinned at [x, z].                               his body exists and is pinned
-Hold position at [x, z]: pinned 1 member(s) to zero speed, waypoints removed. lock layers 2 and 3 applied
-```
-
-**`group fielded=NO` with a prefab named** means the group prefab failed to spawn. **No `SpawnPatrol call` line at all** means the ambient system never visited the point — read the two `Hold probe` lines that follow six and twenty seconds after startup: they report whether the point is registered, spawned, eliminated, paused or has a respawn pending. For an Always Active point the probe also fixes a point that is missing from the rotation or flagged eliminated, and says so.
-
-A line like this means the lock leaked and should be reported with the surrounding log:
-
-```
-Hold position: member 0 HAS MOVED 4.5 m from where it was pinned (now [x, z]).
-```
-
-A run with no such line means he held.
-
-### For maintainers — why the lock has three layers
-
-It is tempting to simplify this to the AI settings system, which has a movement-speed limit. **Do not.** Limiting the AI's speed to `IDLE` was tried first and **did not stop the soldiers walking out of the building.** The lock is three layers, applied by `PVEF_HoldPositionTag` and re-applied every 1.5 seconds for the life of the group by `PVEF_ModdedHoldPosition`:
-
-1. **AI settings** — group and character movement-speed limited to `IDLE`, plus the optional stance limit. Kept, but not trusted alone.
-2. **No waypoint** — vanilla gives every ambient group a Defend waypoint, and Defend moves the AI between cover positions around it, which is what carried them out of the door. The hold removes every waypoint from the group.
-3. **Character speed pinned to zero** — `CharacterControllerComponent.OverrideMaxSpeed(0)` acts on the character itself rather than on the AI's decisions, so it holds whatever the AI wants. Aiming, turning and firing are separate from locomotion and keep working.
-
-It repeats because members are created after `SpawnPatrol()` returns and the engine can reset a speed override.
-
-Two API facts that cost a compile cycle: `GetMembersAlive()` and `SetMembersAlive()` **do not exist in 1.8.0.10** even though they appear in 1.7 source, and a single undefined function fails the whole module's compile.
-
-### Verified in play, and not yet
-
-**Verified on PVEF Arland:** four Always Active hold points placed in a cluster, each fielded one soldier, each was pinned to zero speed within about five seconds of spawning, and a four-minute run logged no `HAS MOVED` line. The startup revive fired and fixed two of the four.
-
-**Not yet exercised:** a hold point gated by a real base objective (parented, not Always Active); the `Stand`, `Crouch` and `Prone` stances; a non-zero `m_iRespawnPeriod`; and a large number of hold points at once. Treat those as unproven until a run covers them.
-
----
-
 ## 7. The mission header
 
 `Missions/<Name>.conf`. PVEF Arland's, verbatim, as the template:
@@ -652,7 +609,15 @@ SCR_MissionHeaderCampaign {
 
 Three notes: it is **`SCR_MissionHeaderCampaign`**, not the plain header; `SystemsConfig` points at **vanilla's** `ConflictSystems.conf`, unchanged; and `m_sGameMode "Conflict"` is what puts it in the right scenario list.
 
-Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. **Finished counter-attacks and mortars stay finished across a server restart**, so clearing a base's counter-attacks and restarting does not bring them back when the base is retaken. There is no file to edit and nothing to configure. They reset when the mission ends, however it ends, and when the Conflict save is deleted to start the map over. **A Workbench play session always starts with every counter-attack and mortar armed**, so you never need to clear any saved state while authoring. PVEF Core's counter-attack and mortar state is kept inside the Conflict save, so there are no extra files in the server profile. A mortar that has not yet spawned always carries on after a restart; one that has already played out does not come back. The rest of PVEF's own state — the governor's open objectives and the civilian latch — is not serialised and comes back at defaults after a reload. Base ownership, which is what players notice, is vanilla's and does persist.
+Persistence rides on that same vanilla systems config — PVEF ships one small override at `Configs/Systems/Persistence/GameMode/Conflict.conf` and nothing else. Base ownership is vanilla's and persists. **Counter-attack progress and mortar positions are kept inside the Conflict save too**, with no files in the server profile:
+
+- A counter-attack that was **finished** — wiped out or given up on — stays finished after a restart.
+- One that was **under way** comes back with the waves it had left.
+- A mortar keeps its impact point, and still opens fire once its base's counter-attacks are finished.
+
+**To start over, delete the save.** Every counter-attack and mortar comes back armed. Winning the campaign resets them as well. A hard crash loses whatever happened since the last save was written. If your server ran an older PVEF Core, delete the save once after updating.
+
+The governor's open objectives and the civilian latch are not saved and come back at defaults after a reload.
 
 The **scenario ID** a server config needs is the header's own GUID plus path — for PVEF Arland:
 
@@ -675,12 +640,15 @@ Select the game mode entity in the world and edit `PVEF_Manager`. There is no co
 | `m_fClusterDistance` | 500 | bases closer than this merge into **one** objective. 0 disables. |
 | `m_iMaxClusterSize` | 2 | stops greedy clustering chaining across a dense map |
 | `m_fMinSeparation` | 600 | keep separate objectives at least this far apart |
+| `m_bNearestFirstObjectives` | off | **strictly linear objectives.** The next objective is always the base nearest to territory the players hold. See below. |
 
 Retake objectives (see Counter-attacks) sit outside all of these: they do not count toward `m_iActiveObjectives` and do not wait for `m_fRefillDelaySec`.
 
 **Objective count follows map size and travel time, not the default.** PVEF Arland runs `m_iActiveObjectives 1` — deliberately, because a 4 km island with two objectives open gives no travel and no front. Everon-scale maps want 2 or 3. The shipped default of 2 is the normal case; small islands are the exception. **Copying Arland's game mode entity brings the 1 with it.**
 
 `m_fRefillDelaySec 60` is the tested value. Longer delays leave players with nothing to do between objectives.
+
+**Linear objectives.** Tick `m_bNearestFirstObjectives` and the next objective is picked purely by distance to the nearest base the players hold — relays get no priority and `m_fMinSeparation` is ignored. For one base at a time, also set `m_iActiveObjectives` to 1 and `m_fClusterDistance` to 0 so bases are not merged.
 
 ### Spawn scatter
 
@@ -706,7 +674,7 @@ You do not need to touch this to use scatter — setting a spawn point's radius 
 | `m_bAssignImportance` | on | **leave this on at 512.** Vanilla ships base compositions at LOW importance, so without this pass the engine sheds objective garrisons *before* roadside ambience. |
 | `m_bBudgetReservations` | on | check headroom before releasing a counter-attack wave |
 
-512 is a measured reference value rather than a guess. **`0` is a sentinel meaning "leave the world's value alone" and never reaches the engine**, because the engine reads a ceiling of 0 as permanently full and spawns nothing.
+512 is taken from ConflictPVERemixedVanilla2.0's own `SCR_AIWorld` prefab — a measured reference rather than a guess. **`0` is a sentinel meaning "leave the world's value alone" and never reaches the engine**, because the engine reads a ceiling of 0 as permanently full and spawns nothing.
 
 The ceiling is a *capacity*, not a density control. With the governor holding a small objective count the natural population sits far below it — 56 peak observed on Arland. Raising it does not put more AI on the ground; objective count and counter-attack size do.
 
@@ -749,11 +717,22 @@ And when you report a problem: **state how you killed something.** Killing by da
 
 ---
 
+## 10. What PVEF does not do yet
+
+Plan around these — they are gaps, not settings you have missed.
+
+- **No road or air patrols.** The ground between the MOB and the front is empty by design right now, and every drive is safe.
+- **No rank gates or arsenal tiers.** Addon territory, not core.
+- **Open objectives are not saved.** Base ownership, counter-attack progress and mortar positions are; the governor's open objectives and the civilian latch reset on reload. See The mission header.
+- **No terrain-profile generator, and there will not be one.** Bases are tagged by hand in the editor; this document plus copying from PVEF Arland is the authoring path.
+
 ### What is included
 
 All of these work, and all of them are placed and working in PVEF Arland:
 
-**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state · **counter-attack stuck detection** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars** · **optional spawn scatter** for counter-attacks and mortars · **hold-position garrisons** — soldiers who guard one spot and do not leave it.
+**faction lock** (USSR and FIA non-playable, via PVEF Core's faction manager override) · **AI seizing** (the enemy takes bases back, it does not just defend) · **civilians** in towns the round has reached · **garbage collection** of bodies and wrecks on a shorter clock than vanilla near players · **save persistence** for vanilla state, counter-attack progress and mortars · **counter-attack stuck detection** · **large counters split into groups of 12** · **supply points** · **retake objectives** — a base lost to a counter-attack gets its task marker back · **mortars** · **optional spawn scatter** for counter-attacks and mortars.
+
+Also available, but not placed in PVEF Arland: **hold positions** for caves and buildings, and **linear objectives** (`m_bNearestFirstObjectives`).
 
 ---
 
@@ -773,8 +752,8 @@ The reference world, and the thing to copy from. Also useful as a sanity check o
 | Objectives open | **1** (small map — see Tuning), 60 s refill, cluster 500 m / max 2 |
 | Graph | 3 lateral neighbours, no link cap |
 | AI ceiling | 512 |
-| Counter-attacks | 13 placed, all `_12` templates with overrides |
-| Mortars | 2, both shelling Arleville |
+| Counter-attacks | 11 placed — 8 `_12` and 3 `_24` templates |
+| Mortars | 5 |
 | Supply points | 1 depot (`Timberridge_Supply_Depot`) with 2 roaming-tagged guards and an inherited cache |
 | Navmesh | BI's Game Master meshes, reused |
 | Peak AI observed | 56, with a clustered objective open |
